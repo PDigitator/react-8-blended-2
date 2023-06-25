@@ -1,73 +1,81 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 
 import { Button } from './Button/Button';
 import { fetchMovies } from 'servises/moviesApi';
 import { MoviesGallary } from './MoviesGallary/MoviesGallary';
+import { Loader } from './Loader/Loader';
+import { Modal } from './Modal/Modal';
 
-class App extends Component {
-  state = {
-    isMoviesShown: false,
-    isLoading: false,
-    movies: [],
-    page: 1,
-  };
+const App = () => {
+  const [isMoviesShown, setIsMoviesShown] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [movies, setMovies] = useState([]);
+  const [page, setPage] = useState(1);
+  const [currentImage, setCurrentImage] = useState(null);
 
-  componentDidUpdate(_, prevState) {
-    const { isMoviesShown, page } = this.state;
-
-    if (
-      (prevState.isMoviesShown !== isMoviesShown || prevState.page !== page) &&
-      isMoviesShown
-    ) {
-      this.setState({ isLoading: true });
+  useEffect(() => {
+    if (isMoviesShown) {
+      setIsLoading(true);
 
       fetchMovies(page)
         .then(({ data: { results } }) => {
-          this.setState(prevState => ({
-            movies: [...prevState.movies, ...results],
-          }));
+          setMovies(prevMovies => [...prevMovies, ...results]);
         })
         .catch(err => {
           console.log('ERROR', err);
         })
         .finally(() => {
-          this.setState({ isLoading: true });
+          setIsLoading(false);
         });
-    }
 
-    if (prevState.isMoviesShown !== isMoviesShown && !isMoviesShown) {
-      this.setState({ movies: [], page: 1 });
     }
+    
+    if (!isMoviesShown) {
+      setMovies([]);
+      setPage(1);
+    }
+  }, [page, isMoviesShown]);
+  
+
+  const toggleVisibility = () => {
+   setIsMoviesShown(prevIsMoviesShow => !prevIsMoviesShow);
+  };
+
+  const loadMore = () => {
+    setPage(prevPage => prevPage + 1);
+    // this.setState(prevState => ({ page: prevState.page + 1 }));
+  };
+
+  const deleteMovies = (id) => {
+    setMovies(prevMovies => prevMovies.filter(movie => movie.id !== id));
   }
 
-  toggleVisibility = () => {
-    this.setState(prevState => ({
-      isMoviesShown: !prevState.isMoviesShown,
-    }));
-  };
+  const openModal = (data) => {
+    setCurrentImage(data);
+  }
 
-  loadMore = () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
-  };
-
-  render() {
-    const { isMoviesShown, movies } = this.state;
+  const closeModal = () => {
+    setCurrentImage(null);
+  }
+    
 
     return (
       <>
         <Button
           text={isMoviesShown ? 'Hide movies list' : 'Show movies list'}
-          clickHandler={this.toggleVisibility}
+          clickHandler={toggleVisibility}
         />
         {isMoviesShown && (
           <>
-            <MoviesGallary movies={movies} />
-            <Button text="Load more" clickHandler={this.loadMore} />
+            <MoviesGallary movies={movies} deleteMovies={deleteMovies} openModal={openModal} />
+            <Button text="Load more" clickHandler={loadMore} />
+            {isLoading && <Loader />}
           </>
         )}
+        {currentImage && <Modal closeModal={closeModal} currentImage={currentImage} />}
       </>
     );
-  }
+
 }
 
 export default App;
